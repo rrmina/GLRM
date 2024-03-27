@@ -79,19 +79,27 @@ class GLRM(object):
         self.X0, self.Y0 = X0, Y0
 
         # cvxpy problems
-        Xv, Yp = cp.Variable(m,k), [cp.Parameter(k+1,ni) for ni in ns]
-        Xp, Yv = cp.Parameter(m,k+1), [cp.Variable(k+1,ni) for ni in ns]
+        # import ipdb
+        # ipdb.set_trace()
+        # Xv, Yp = cp.Variable(shape=(m,k), name='Xv') , [cp.Parameter(k+1,ni) for ni in ns]
+        # Xp, Yv = cp.Parameter(m,k+1), [cp.Variable(k+1,ni) for ni in ns]
+        Xv = cp.Variable((m, k))
+        Xp = cp.Parameter((m, k+1))
+
+        Yp = [cp.Parameter((k+1, ni)) for ni in ns]
+        Yv = [cp.Variable((k+1, ni)) for ni in ns]
+
         Xp.value = copy(X0)
         for yj, yj0 in zip(Yp, Y0): yj.value = copy(yj0)
         onesM = cp.Constant(ones((m,1)))
 
-        obj = sum(L(Aj, cp.mul_elemwise(mask, Xv*yj[:-1,:] \
+        obj = sum(L(Aj, cp.multiply(mask, Xv*yj[:-1,:] \
                 + onesM*yj[-1:,:]) + offset) + ry(yj[:-1,:])\
                 for L, Aj, yj, mask, offset, ry in \
                 zip(self.L, A, Yp, self.masks, self.offsets, regY)) + regX(Xv)
         pX = cp.Problem(cp.Minimize(obj))
         pY = [cp.Problem(cp.Minimize(\
-                L(Aj, cp.mul_elemwise(mask, Xp*yj) + offset) \
+                L(Aj, cp.multiply(mask, Xp*yj) + offset) \
                 + ry(yj[:-1,:]) + regX(Xp))) \
                 for L, Aj, yj, mask, offset, ry in zip(self.L, A, Yv, self.masks, self.offsets, regY)]
 
@@ -122,7 +130,7 @@ class GLRM(object):
             bi = (ai-offset)/mask # standardize
 
             # zero-out missing entries (for XY initialization)
-            for (i,j) in missing: bi[i,j], mask[i,j] = 0, 0
+            for (i,j) in missing: bi[j][i], mask[j][i] = 0, 0
              
             B.append(bi) # save
             masks.append(mask)
@@ -133,7 +141,7 @@ class GLRM(object):
 
     def _initialize_XY(self, B, k, missing_list):
         """ Scale by ration of non-missing, SVD, append col of ones, add noise. """
-        A = hstack(bi for bi in B)
+        A = hstack([bi for bi in B])
         m, n = A.shape
 
         # normalize entries that are missing
@@ -161,9 +169,8 @@ class GLRM(object):
 
     def _finalize_XY(self, Xv, Yv):
         """ Multiply by std, offset by mean """
-        m, k = Xv.shape.size
+        m, k = Xv.shape
         self.X = asarray(hstack((Xv.value, ones((m,1)))))
         self.Y = [asarray(yj.value)*tile(mask[0,:],(k+1,1)) \
                 for yj, mask in zip(Yv, self.masks)]
         for offset, Y in zip(self.offsets, self.Y): Y[-1,:] += offset[0,:]
-            
