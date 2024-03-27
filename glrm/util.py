@@ -32,15 +32,15 @@ def pplot(As, titles):
         plt.axis("off")
    
     plt.show()
-# 
-# def unroll_missing(missing, ns):
-#     missing_unrolled = []
-#     for i, (MM, n) in enumerate(zip(missing, ns)):
-#         for m in MM:
-#             n2 = m[1] + sum([ns[j] for j in range(i)])
-#             missing_unrolled.append((m[0], n2))
-#     return missing_unrolled
-# 
+
+def unroll_missing(missing, ns):
+    missing_unrolled = []
+    for i, (MM, n) in enumerate(zip(missing, ns)):
+        for m in MM:
+            n2 = m[1] + sum([ns[j] for j in range(i)])
+            missing_unrolled.append((m[0], n2))
+    return missing_unrolled
+
 def shrinkage(a, kappa):
     """ soft threshold with parameter kappa). """
     try: return maximum(a - kappa(ones(a.shape), 0)) - maximum(-a - kappa*ones(a.shape), 0)
